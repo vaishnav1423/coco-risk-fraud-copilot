@@ -1,0 +1,10 @@
+[project]
+name = "coco-risk-fraud-copilot"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "faker>=40.40.0",
+    "pandas>=3.0.6",
+]
