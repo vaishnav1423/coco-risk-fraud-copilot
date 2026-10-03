@@ -135,8 +135,6 @@ Note: `01_setup.sql` (referenced above) should also live in this folder.
 - [ ] Store rule thresholds in the `DETECTION_RULES` table so changing a row changes the alerts
 - [ ] Add a test set of questions to measure how often the agent answers correctly
 - [ ] Add a reviewer sign-off step that changes a finding from DRAFT to APPROVED
-- [ ] Move the SQL files into a `sql/` folder with numbered names (`01_`, `02_`, ...)
-- [ ] Remove unused files (`main.py`, the duplicate generator script, `templist`)
 - [ ] Add a version of the app that can run on a laptop
 - [ ] Add an architecture diagram and a demo video link here
 
