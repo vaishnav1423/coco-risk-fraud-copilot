@@ -15,6 +15,8 @@ USE SCHEMA RISK_FRAUD_DB.COPILOT;
 CREATE OR REPLACE TABLE ALERTS AS
 WITH
 -- STR-R1: 3+ cash deposits of INR 9,00,000 - 9,99,999 within a rolling 7 days
+-- NOTE: Self-join approach is O(N^2) per account. At production scale, consider
+-- replacing with a window-function sliding-window pattern for better performance.
 cash AS (
   SELECT account_id, txn_ts, amount
   FROM TRANSACTIONS
@@ -49,7 +51,9 @@ geo_alerts AS (
   WHERE amount > 2000000 AND counterparty_country IN ('NG', 'KY')
 ),
 -- VEL-R1: more than 15 outgoing transfers within 60 minutes
--- (simplification: UPI / IMPS / NEFT treated as outgoing transfers)
+-- NOTE: UPI/IMPS/NEFT are treated as outgoing transfers. The data has no explicit
+-- direction column, so inbound transfers on these channels are also counted.
+-- NOTE: Self-join approach is O(N^2) per account — same scalability caveat as STR-R1.
 xfers AS (
   SELECT account_id, txn_ts, amount
   FROM TRANSACTIONS
@@ -190,7 +194,8 @@ CREATE OR REPLACE SEMANTIC VIEW RISK_FRAUD_SV
     alerts.alert_status AS status,
     alerts.alert_start AS window_start
       COMMENT = 'Start of the activity window that triggered the alert',
-    alerts.alert_end AS window_end,
+    alerts.alert_end AS window_end
+      COMMENT = 'End of the activity window that triggered the alert',
     alerts.alert_month AS DATE_TRUNC('month', window_start),
 
     detection_rules.rule_id AS rule_id

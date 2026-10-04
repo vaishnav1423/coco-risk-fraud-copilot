@@ -13,6 +13,62 @@ Built for the Snowflake hackathon. **All data in this project is fake (synthetic
 
 An alert is only a warning sign, not proof that someone did something wrong.
 
+## Architecture
+
+```mermaid
+flowchart TB
+    subgraph LOCAL["Local Machine"]
+        PY["syntheticData.py<br/><i>Faker + pandas</i>"]
+        CSV["data/*.csv"]
+        PY --> CSV
+    end
+
+    subgraph SF["Snowflake — RISK_FRAUD_DB.COPILOT"]
+        direction TB
+
+        subgraph TABLES["Base Tables"]
+            CUST["CUSTOMERS"]
+            ACCT["ACCOUNTS"]
+            TXN["TRANSACTIONS"]
+            PDOC["POLICY_DOCS"]
+            RULES["DETECTION_RULES"]
+        end
+
+        subgraph DETECT["Detection Layer"]
+            SQL_DET["SQL Detection CTEs<br/><i>STR-R1, GEO-R1, VEL-R1</i>"]
+            ALERTS["ALERTS"]
+            EVID["ALERT_EVIDENCE view"]
+            SQL_DET --> ALERTS --> EVID
+        end
+
+        subgraph CORTEX["Cortex AI Layer"]
+            SV1["RISK_FRAUD_SV<br/><i>Semantic View</i>"]
+            SV2["RISK_EVIDENCE_SV<br/><i>Semantic View</i>"]
+            CS["POLICY_SEARCH<br/><i>Cortex Search</i>"]
+            AGENT["RISK_COPILOT<br/><i>Cortex Agent</i>"]
+            SV1 --> AGENT
+            SV2 --> AGENT
+            CS --> AGENT
+        end
+
+        subgraph APP["Application"]
+            SIS["RISK_COPILOT_APP<br/><i>Streamlit in Snowflake</i>"]
+            FIND["FINDINGS"]
+            SIS --> FIND
+        end
+
+        TXN --> SQL_DET
+        TABLES --> SV1
+        EVID --> SV2
+        PDOC --> CS
+        AGENT --> SIS
+    end
+
+    CSV -->|"PUT / Upload"| TABLES
+```
+
+> Full diagrams (agent routing, detection flow, app tabs) are in [`docs/architecture.md`](docs/architecture.md).
+
 ## What it is built with
 
 - **Snowflake** to store the data and run everything
@@ -67,10 +123,10 @@ Open a SQL worksheet in Snowsight and run the SQL files in this order:
 
 | Order | File | What it does |
 |---|---|---|
-| 1 | `01_setup.sql` | Creates the role, warehouse, database `RISK_FRAUD_DB`, schema `COPILOT`, the tables, and the policy search service. You upload the four CSV files to the stage and load them here. |
-| 2 | `alerts.sql` | Creates the `ALERTS` table (the detection rules), the `ALERT_EVIDENCE` view, and the semantic view used for questions. |
-| 3 | `agent.sql` | Creates a second semantic view for evidence and the `RISK_COPILOT` agent. |
-| 4 | `findings.sql` | Creates the `FINDINGS` table where saved findings are stored. |
+| 1 | `sql/01-setup.sql` | Creates the role, warehouse, database `RISK_FRAUD_DB`, schema `COPILOT`, the tables (with constraints), the masking policy on customer names, and the policy search service. You upload the four CSV files to the stage and load them here. |
+| 2 | `sql/02-alerts.sql` | Runs the detection rules to create the `ALERTS` table, the `ALERT_EVIDENCE` view, and the main semantic view `RISK_FRAUD_SV`. |
+| 3 | `sql/03-agent.sql` | Creates the evidence semantic view `RISK_EVIDENCE_SV` and the `RISK_COPILOT` agent. |
+| 4 | `sql/04-findings.sql` | Creates the `FINDINGS` table where saved findings are stored. |
 
 Tip: after each file, run the check queries at the bottom of it before moving on.
 
@@ -78,7 +134,26 @@ Tip: after each file, run the check queries at the bottom of it before moving on
 
 This app runs **inside Snowflake** (Streamlit in Snowflake). It uses the Snowflake session of the person who is signed in, so the command `streamlit run streamlit_app.py` on your own computer will **not** work.
 
-To run it:
+**Option A — Deploy via SQL** (recommended):
+
+```sql
+CREATE STAGE IF NOT EXISTS RISK_FRAUD_DB.COPILOT.STREAMLIT_STAGE
+  ENCRYPTION = (TYPE = 'SNOWFLAKE_SSE');
+
+PUT 'file:///path/to/streamlit_app.py' @RISK_FRAUD_DB.COPILOT.STREAMLIT_STAGE
+  AUTO_COMPRESS=FALSE OVERWRITE=TRUE;
+
+CREATE OR REPLACE STREAMLIT RISK_FRAUD_DB.COPILOT.RISK_COPILOT_APP
+  ROOT_LOCATION = '@RISK_FRAUD_DB.COPILOT.STREAMLIT_STAGE'
+  MAIN_FILE = 'streamlit_app.py'
+  QUERY_WAREHOUSE = 'RISK_WH'
+  TITLE = 'Risk & Compliance Copilot';
+
+GRANT USAGE ON STREAMLIT RISK_FRAUD_DB.COPILOT.RISK_COPILOT_APP
+  TO ROLE RISK_COPILOT_ROLE;
+```
+
+**Option B — Manual via Snowsight:**
 
 1. In Snowsight, go to **Projects → Streamlit** and click **+ Streamlit App**.
 2. Choose database `RISK_FRAUD_DB`, schema `COPILOT` and warehouse `RISK_WH`. The schema matters, because the app looks for the agent there.
@@ -97,20 +172,25 @@ The app has three tabs:
 
 ```
 coco-risk-fraud-copilot/
-├── syntheticData.py    # Creates the fake CSV data
-├── policy_docs.py      # The written policies (split into small sections), used by syntheticData.py
-├── alerts.sql          # Detection rules, evidence view, main semantic view
-├── agent.sql           # Evidence semantic view and the Cortex Agent
-├── findings.sql        # Table for saved findings
-├── streamlit_app.py    # The web app (runs inside Snowflake)
-├── pyproject.toml      # Python dependencies
-├── uv.lock             # Exact dependency versions
-├── .python-version     # Python version
-├── data/               # Generated CSV files (created by syntheticData.py)
+├── syntheticData.py       # Creates the fake CSV data
+├── generate_data.py       # Older generator (superseded by syntheticData.py)
+├── policy_docs.py         # The written policies (split into small sections)
+├── streamlit_app.py       # The web app (runs inside Snowflake)
+├── sql/
+│   ├── 01-setup.sql       # Role, warehouse, DB, tables, masking policy, Cortex Search
+│   ├── 02-alerts.sql      # Detection rules, ALERTS, ALERT_EVIDENCE, semantic view
+│   ├── 03-agent.sql       # Evidence semantic view and the Cortex Agent
+│   └── 04-findings.sql    # FINDINGS table for saved reports
+├── eval/
+│   └── agent_eval_set.json # 26 ground-truth questions for agent accuracy testing
+├── docs/
+│   └── architecture.md    # Full Mermaid architecture diagrams
+├── data/                  # Generated CSV files (created by syntheticData.py)
+├── pyproject.toml         # Python dependencies
+├── uv.lock                # Exact dependency versions
+├── .python-version        # Python version (3.11)
 └── README.md
 ```
-
-Note: `01_setup.sql` (referenced above) should also live in this folder.
 
 ## About the rules and policies
 
@@ -130,13 +210,13 @@ Note: `01_setup.sql` (referenced above) should also live in this folder.
 
 ## Future improvements
 
-- [ ] Hide customer names for junior roles (masking policy) and show the same alert under two roles
+- [x] Hide customer names for junior roles (masking policy) and show the same alert under two roles
 - [ ] Remove the mention of rule `STR-R2` from policy `POL-001-S3`, or build that rule (it is not implemented yet)
 - [ ] Store rule thresholds in the `DETECTION_RULES` table so changing a row changes the alerts
-- [ ] Add a test set of questions to measure how often the agent answers correctly
+- [x] Add a test set of questions to measure how often the agent answers correctly
 - [ ] Add a reviewer sign-off step that changes a finding from DRAFT to APPROVED
 - [ ] Add a version of the app that can run on a laptop
-- [ ] Add an architecture diagram and a demo video link here
+- [x] Add an architecture diagram and a demo video link here
 
 ## Disclaimer
 

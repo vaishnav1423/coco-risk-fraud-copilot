@@ -18,9 +18,14 @@ CREATE DATABASE IF NOT EXISTS RISK_FRAUD_DB;
 CREATE SCHEMA   IF NOT EXISTS RISK_FRAUD_DB.COPILOT;
 
 GRANT USAGE ON WAREHOUSE RISK_WH TO ROLE RISK_COPILOT_ROLE;
-GRANT ALL ON DATABASE RISK_FRAUD_DB TO ROLE RISK_COPILOT_ROLE;
-GRANT ALL ON SCHEMA RISK_FRAUD_DB.COPILOT TO ROLE RISK_COPILOT_ROLE;
-GRANT ALL ON FUTURE TABLES IN SCHEMA RISK_FRAUD_DB.COPILOT TO ROLE RISK_COPILOT_ROLE;
+GRANT USAGE ON DATABASE RISK_FRAUD_DB TO ROLE RISK_COPILOT_ROLE;
+GRANT USAGE, CREATE TABLE, CREATE VIEW, CREATE STAGE, CREATE FILE FORMAT,
+      CREATE SEMANTIC VIEW, CREATE AGENT
+  ON SCHEMA RISK_FRAUD_DB.COPILOT TO ROLE RISK_COPILOT_ROLE;
+GRANT SELECT, INSERT, UPDATE, DELETE, TRUNCATE
+  ON FUTURE TABLES IN SCHEMA RISK_FRAUD_DB.COPILOT TO ROLE RISK_COPILOT_ROLE;
+GRANT SELECT
+  ON FUTURE VIEWS IN SCHEMA RISK_FRAUD_DB.COPILOT TO ROLE RISK_COPILOT_ROLE;
 
 -- Cortex functions (usually already granted to PUBLIC; harmless to repeat)
 GRANT DATABASE ROLE SNOWFLAKE.CORTEX_USER TO ROLE RISK_COPILOT_ROLE;
@@ -31,8 +36,8 @@ USE SCHEMA RISK_FRAUD_DB.COPILOT;
 
 -- ---------- 2. Tables (columns match the generated CSVs) ----------
 CREATE OR REPLACE TABLE CUSTOMERS (
-  customer_id   STRING,
-  name          STRING,
+  customer_id   STRING    NOT NULL PRIMARY KEY,
+  name          STRING    NOT NULL,
   city          STRING,
   kyc_status    STRING,
   risk_rating   STRING,
@@ -41,18 +46,18 @@ CREATE OR REPLACE TABLE CUSTOMERS (
 );
 
 CREATE OR REPLACE TABLE ACCOUNTS (
-  account_id           STRING,
-  customer_id          STRING,
+  account_id           STRING       NOT NULL PRIMARY KEY,
+  customer_id          STRING       NOT NULL REFERENCES CUSTOMERS (customer_id),
   account_type         STRING,
   balance              NUMBER(18,2),
   avg_monthly_inflow   NUMBER(18,2)
 );
 
 CREATE OR REPLACE TABLE TRANSACTIONS (
-  txn_id               STRING,
-  account_id           STRING,
-  txn_ts               TIMESTAMP_NTZ,
-  amount               NUMBER(18,2),
+  txn_id               STRING        NOT NULL PRIMARY KEY,
+  account_id           STRING        NOT NULL REFERENCES ACCOUNTS (account_id),
+  txn_ts               TIMESTAMP_NTZ NOT NULL,
+  amount               NUMBER(18,2)  NOT NULL,
   channel              STRING,
   counterparty_country STRING,
   merchant_category    STRING,
@@ -60,8 +65,8 @@ CREATE OR REPLACE TABLE TRANSACTIONS (
 );
 
 CREATE OR REPLACE TABLE POLICY_DOCS (
-  doc_id         STRING,
-  section_id     STRING,
+  doc_id         STRING   NOT NULL,
+  section_id     STRING   NOT NULL PRIMARY KEY,
   title          STRING,
   section_title  STRING,
   doc_type       STRING,
@@ -69,7 +74,7 @@ CREATE OR REPLACE TABLE POLICY_DOCS (
   version        STRING,
   effective_date DATE,
   owner          STRING,
-  text           STRING
+  text           STRING   -- long-form policy/regulation text
 );
 
 -- ---------- 3. Stage + file format ----------
@@ -109,9 +114,9 @@ SELECT injected_pattern, COUNT(*) FROM TRANSACTIONS GROUP BY 1;
 
 -- ---------- 6. Detection rules table (links signals to policy clauses) ----------
 CREATE OR REPLACE TABLE DETECTION_RULES (
-  rule_id        STRING,
-  rule_name      STRING,
-  policy_section STRING,   -- joins to POLICY_DOCS.section_id
+  rule_id        STRING NOT NULL PRIMARY KEY,
+  rule_name      STRING NOT NULL,
+  policy_section STRING REFERENCES POLICY_DOCS (section_id),
   severity       STRING,
   description    STRING
 );
@@ -124,7 +129,21 @@ INSERT INTO DETECTION_RULES VALUES
  ('VEL-R1','Velocity burst','POL-003-S2','MEDIUM',
   'More than 15 outgoing transfers within 60 minutes');
 
--- ---------- 7. Cortex Search service on the policy text ----------
+-- ---------- 7. Masking policy on customer names ----------
+CREATE OR REPLACE MASKING POLICY CUSTOMER_NAME_MASK
+  AS (val STRING) RETURNS STRING ->
+  CASE
+    WHEN IS_ROLE_IN_SESSION('ACCOUNTADMIN')
+      OR IS_ROLE_IN_SESSION('RISK_COPILOT_ROLE')
+    THEN val
+    ELSE '***MASKED***'
+  END;
+
+ALTER TABLE CUSTOMERS
+  MODIFY COLUMN NAME
+  SET MASKING POLICY CUSTOMER_NAME_MASK;
+
+-- ---------- 8. Cortex Search service on the policy text ----------
 CREATE OR REPLACE CORTEX SEARCH SERVICE POLICY_SEARCH
   ON text
   ATTRIBUTES doc_id, section_id, title, section_title, doc_type, category, version

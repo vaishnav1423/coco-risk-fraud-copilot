@@ -1,0 +1,286 @@
+[
+  {
+    "id": "RA-01",
+    "question": "How many alerts are there in total?",
+    "expected_tool": "RiskAnalyst",
+    "category": "counting",
+    "ground_truth": {
+      "answer": 67,
+      "detail": "67 total alerts, all with status OPEN"
+    }
+  },
+  {
+    "id": "RA-02",
+    "question": "How many high severity alerts are open, by alert type?",
+    "expected_tool": "RiskAnalyst",
+    "category": "counting",
+    "ground_truth": {
+      "answer": "STR-R1: 25 HIGH, GEO-R1: 20 HIGH. Total 45 high-severity alerts.",
+      "detail": "VEL-R1 has 22 alerts but all are MEDIUM severity"
+    }
+  },
+  {
+    "id": "RA-03",
+    "question": "How many medium severity alerts are there?",
+    "expected_tool": "RiskAnalyst",
+    "category": "counting",
+    "ground_truth": {
+      "answer": 22,
+      "detail": "All 22 are VEL-R1 (velocity burst) alerts"
+    }
+  },
+  {
+    "id": "RA-04",
+    "question": "Which HIGH risk customers have structuring alerts?",
+    "expected_tool": "RiskAnalyst",
+    "category": "filtering",
+    "ground_truth": {
+      "answer": "5 HIGH-risk customers with STR-R1 alerts",
+      "detail": "C00093 Rajata Sunder, C00255 Raksha Bassi, C00888 Qushi Naik, C01714 Abhiram Parikh, C01998 Sathvik Gokhale"
+    }
+  },
+  {
+    "id": "RA-05",
+    "question": "What is the total INR value of activity behind all structuring alerts?",
+    "expected_tool": "RiskAnalyst",
+    "category": "aggregation",
+    "ground_truth": {
+      "answer": "INR 131,799,501.72",
+      "detail": "Sum of total_amount for all 25 STR-R1 alerts"
+    }
+  },
+  {
+    "id": "RA-06",
+    "question": "Break down alert counts by customer risk rating.",
+    "expected_tool": "RiskAnalyst",
+    "category": "aggregation",
+    "ground_truth": {
+      "answer": "LOW: 47, MEDIUM: 12, HIGH: 8",
+      "detail": "Most alerts are on LOW-risk customers since injected patterns were applied randomly"
+    }
+  },
+  {
+    "id": "RA-07",
+    "question": "Which customer has alerts from more than one rule?",
+    "expected_tool": "RiskAnalyst",
+    "category": "filtering",
+    "ground_truth": {
+      "answer": "C00369 Yochana Sagar (LOW risk) has 2 alerts from STR-R1 and GEO-R1",
+      "detail": "Only customer with alerts across multiple rule types"
+    }
+  },
+  {
+    "id": "RA-08",
+    "question": "Which velocity burst alert has the highest transaction count?",
+    "expected_tool": "RiskAnalyst",
+    "category": "ranking",
+    "ground_truth": {
+      "answer": "VEL-R1-A000595-20260626000000 with 30 transactions totalling INR 154,573.62",
+      "detail": "Customer C00450 Vasudha Pall, account A000595"
+    }
+  },
+  {
+    "id": "RA-09",
+    "question": "What is the largest single high-risk jurisdiction transfer?",
+    "expected_tool": "RiskAnalyst",
+    "category": "ranking",
+    "ground_truth": {
+      "answer": "GEO-R1-A001908-20260821000000 for INR 7,758,848.59",
+      "detail": "Customer C01426 Wishi Venkataraman, LOW risk, transferred to KY via RTGS"
+    }
+  },
+  {
+    "id": "RA-10",
+    "question": "What is the total INR value of all high-risk jurisdiction alerts?",
+    "expected_tool": "RiskAnalyst",
+    "category": "aggregation",
+    "ground_truth": {
+      "answer": "INR 108,501,272.34",
+      "detail": "Sum of total_amount for all 20 GEO-R1 alerts"
+    }
+  },
+  {
+    "id": "EA-01",
+    "question": "Show the transactions behind alert STR-R1-A000121-20260530000000.",
+    "expected_tool": "EvidenceAnalyst",
+    "category": "evidence_retrieval",
+    "ground_truth": {
+      "answer": "7 supporting transactions totalling INR 6,577,311.87",
+      "detail": "All are CASH_DEPOSIT transactions between INR 900,000 and INR 999,999.99"
+    }
+  },
+  {
+    "id": "EA-02",
+    "question": "What are the transactions behind the largest high-risk jurisdiction alert?",
+    "expected_tool": "EvidenceAnalyst",
+    "category": "evidence_retrieval",
+    "ground_truth": {
+      "answer": "1 transaction: T0043623 on 2026-08-21, INR 7,758,848.59, RTGS to KY",
+      "detail": "Alert GEO-R1-A001908-20260821000000, single large transfer"
+    }
+  },
+  {
+    "id": "EA-03",
+    "question": "For alert VEL-R1-A000595-20260626000000, how many evidence transactions are there and through which channels?",
+    "expected_tool": "EvidenceAnalyst",
+    "category": "evidence_retrieval",
+    "ground_truth": {
+      "answer": "30 transactions via UPI, IMPS, and/or NEFT channels",
+      "detail": "Velocity burst alert — all transfers occurred within a 60-minute window"
+    }
+  },
+  {
+    "id": "PS-01",
+    "question": "What must we do when cash deposits are just below the reporting limit?",
+    "expected_tool": "PolicySearch",
+    "category": "policy_lookup",
+    "ground_truth": {
+      "answer": "Per POL-001 (AML Structuring Policy): 3+ cash deposits of INR 9-9.99 lakh in 7 days trigger rule STR-R1. Level 1 analyst reviews within 1 business day (POL-001-S4). If confirmed, escalate to AML Compliance Officer within 2 business days. STR filing within 7 working days if suspicion is concluded.",
+      "detail": "Key sections: POL-001-S2 (definitions), POL-001-S3 (detection rules), POL-001-S4 (escalation)"
+    }
+  },
+  {
+    "id": "PS-02",
+    "question": "What evidence is required to close a structuring alert?",
+    "expected_tool": "PolicySearch",
+    "category": "policy_lookup",
+    "ground_truth": {
+      "answer": "Per POL-001-S5: transaction list with IDs and timestamps, account and customer profile, KYC status, average monthly inflow vs deposited amounts, and analyst's written rationale. Conclusions without transaction-level evidence are not accepted.",
+      "detail": "Section POL-001-S5 (Evidence Required)"
+    }
+  },
+  {
+    "id": "PS-03",
+    "question": "Which countries are on the high-risk jurisdiction list?",
+    "expected_tool": "PolicySearch",
+    "category": "policy_lookup",
+    "ground_truth": {
+      "answer": "Per POL-002-S2: Nigeria (NG) and the Cayman Islands (KY). The list is reviewed quarterly by the Financial Crime Committee.",
+      "detail": "Section POL-002-S2 (High-Risk Jurisdiction List)"
+    }
+  },
+  {
+    "id": "PS-04",
+    "question": "What is the SLA for filing an STR?",
+    "expected_tool": "PolicySearch",
+    "category": "policy_lookup",
+    "ground_truth": {
+      "answer": "Per POL-001-S4: STR must be filed within 7 working days of concluding suspicion. The Principal Officer decides on filing.",
+      "detail": "Section POL-001-S4 (Escalation Workflow)"
+    }
+  },
+  {
+    "id": "PS-05",
+    "question": "How long must alert records be retained?",
+    "expected_tool": "PolicySearch",
+    "category": "policy_lookup",
+    "ground_truth": {
+      "answer": "Per POL-001-S7: alerts, case files and STR copies are retained for at least 5 years from case closure.",
+      "detail": "Section POL-001-S7 (Record Retention)"
+    }
+  },
+  {
+    "id": "PS-06",
+    "question": "What are the four disposition categories for an alert?",
+    "expected_tool": "PolicySearch",
+    "category": "policy_lookup",
+    "ground_truth": {
+      "answer": "Per POL-005-S1: TRUE_POSITIVE (confirmed suspicious activity), FALSE_POSITIVE (legitimate activity misidentified), ESCALATED (requires senior review or additional investigation), INSUFFICIENT_EVIDENCE (cannot confirm or rule out, flag for monitoring).",
+      "detail": "Section POL-005-S1 (Disposition Categories)"
+    }
+  },
+  {
+    "id": "PS-07",
+    "question": "What Enhanced Due Diligence is required for a high-risk jurisdiction transfer?",
+    "expected_tool": "PolicySearch",
+    "category": "policy_lookup",
+    "ground_truth": {
+      "answer": "Per POL-002-S4: EDD is mandatory before release — purpose of payment, relationship to counterparty, source of funds, and supporting documents such as invoices or contracts. Release needs written approval from a Compliance Officer.",
+      "detail": "Section POL-002-S4 (Required Controls)"
+    }
+  },
+  {
+    "id": "MT-01",
+    "question": "What should we do about alert STR-R1-A000121-20260530000000?",
+    "expected_tool": ["RiskAnalyst", "PolicySearch", "EvidenceAnalyst"],
+    "category": "multi_tool_investigation",
+    "ground_truth": {
+      "answer": "Alert STR-R1 is a structuring alert on account A000121 with 7 cash deposits totalling ~INR 65.8 lakh. Per POL-001-S4, Level 1 analyst should review within 1 business day. Must collect evidence per POL-001-S5 (transaction list, customer profile, KYC status). If suspicious, escalate to AML Compliance Officer within 2 business days. STR filing within 7 working days if suspicion confirmed.",
+      "validation_criteria": [
+        "Mentions the alert ID and rule (STR-R1)",
+        "Provides evidence transaction count (7) and approximate total",
+        "Cites POL-001-S4 for escalation workflow",
+        "Cites POL-001-S5 for evidence requirements",
+        "Mentions STR filing timeline"
+      ]
+    }
+  },
+  {
+    "id": "MT-02",
+    "question": "Show the transactions behind the largest high-risk jurisdiction alert and cite the policy.",
+    "expected_tool": ["RiskAnalyst", "EvidenceAnalyst", "PolicySearch"],
+    "category": "multi_tool_investigation",
+    "ground_truth": {
+      "answer": "Largest GEO-R1 alert is GEO-R1-A001908-20260821000000 for INR 7,758,848.59. Evidence: 1 RTGS transaction T0043623 to KY on 2026-08-21. Per POL-002-S4, EDD is required: purpose of payment, source of funds, supporting documents. Release needs Compliance Officer approval.",
+      "validation_criteria": [
+        "Identifies the correct alert (GEO-R1-A001908-20260821000000)",
+        "Shows transaction T0043623, amount ~INR 77.6 lakh, RTGS channel, country KY",
+        "Cites POL-002 (High-Risk Jurisdiction Transfers)",
+        "Mentions EDD requirements from POL-002-S4"
+      ]
+    }
+  },
+  {
+    "id": "MT-03",
+    "question": "Give me a full finding for the highest-value structuring alert, including evidence and policy citations.",
+    "expected_tool": ["RiskAnalyst", "EvidenceAnalyst", "PolicySearch"],
+    "category": "multi_tool_investigation",
+    "ground_truth": {
+      "validation_criteria": [
+        "Identifies the STR-R1 alert with the highest total_amount",
+        "Lists supporting CASH_DEPOSIT transactions with IDs and timestamps",
+        "Cites POL-001-S3 for detection rule definition",
+        "Cites POL-001-S4 for escalation workflow and SLAs",
+        "Cites POL-001-S5 for evidence requirements",
+        "Includes risk assessment and recommended action",
+        "Uses cautious language (potential, indicates — not definitive fraud claims)"
+      ]
+    }
+  },
+  {
+    "id": "MT-04",
+    "question": "Customer C00369 has multiple alerts. Summarise all their alerts with evidence and recommend next steps.",
+    "expected_tool": ["RiskAnalyst", "EvidenceAnalyst", "PolicySearch"],
+    "category": "multi_tool_investigation",
+    "ground_truth": {
+      "answer": "C00369 Yochana Sagar (LOW risk) has 2 alerts: one STR-R1 (structuring) and one GEO-R1 (high-risk jurisdiction). This is the only customer with alerts across multiple rule types.",
+      "validation_criteria": [
+        "Identifies both alerts on customer C00369",
+        "Shows evidence for both (structuring deposits + jurisdiction transfer)",
+        "Cites POL-001 for structuring and POL-002 for jurisdiction",
+        "Notes the convergence of two alert types on one customer as elevated risk",
+        "Recommends appropriate next steps per each policy"
+      ]
+    }
+  },
+  {
+    "id": "NEG-01",
+    "question": "Show me all alerts for customer C00001.",
+    "expected_tool": "RiskAnalyst",
+    "category": "negative_test",
+    "ground_truth": {
+      "answer": "No alerts found for customer C00001.",
+      "detail": "Agent should report no results were found rather than inventing data"
+    }
+  },
+  {
+    "id": "NEG-02",
+    "question": "What does policy POL-999 say about wire transfers?",
+    "expected_tool": "PolicySearch",
+    "category": "negative_test",
+    "ground_truth": {
+      "answer": "No policy POL-999 was found.",
+      "detail": "Agent should state the policy was not found rather than fabricating content"
+    }
+  }
+]

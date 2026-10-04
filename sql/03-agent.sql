@@ -85,6 +85,8 @@ CREATE OR REPLACE AGENT RISK_COPILOT
         from RiskAnalyst, then use PolicySearch for that rule's policy section and its
         escalation and evidence sections, then EvidenceAnalyst for the transactions.
       - Retrieve several policy sections when the question is about required actions.
+      - If a tool returns no results, state that no matching records were found and
+        suggest the analyst refine the query. Do not fabricate data to fill the gap.
     sample_questions:
       - question: "How many high severity alerts are open, by alert type?"
       - question: "Which HIGH risk customers have structuring alerts?"
