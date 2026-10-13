@@ -191,8 +191,8 @@ with tab1:
     view = alerts[alerts["SEVERITY"].isin(sev) & alerts["RULE_NAME"].isin(rules)].copy()
     view["HAS_FINDING"] = view["FINDING_ID"].notna()
     st.dataframe(view[["ALERT_ID", "RULE_NAME", "SEVERITY", "CUSTOMER_NAME", "RISK_RATING",
-                       "KYC_STATUS", "TXN_COUNT", "TOTAL_AMOUNT", "HAS_FINDING"]],
-                 use_container_width=True, hide_index=True)
+                       "KYC_STATUS", "TXN_COUNT", "TOTAL_AMOUNT", "HAS_FINDING"]].reset_index(drop=True),
+                 use_container_width=True)
     st.bar_chart(view.groupby("RULE_NAME")["ALERT_ID"].count())
 
 # --------------------------- case view & finding -------------------------
@@ -214,7 +214,7 @@ with tab2:
     ev = session.sql(f"""SELECT TXN_ID, TXN_TS, AMOUNT, CHANNEL, COUNTERPARTY_COUNTRY
                          FROM {T}.ALERT_EVIDENCE WHERE ALERT_ID = '{esc(pick)}'
                          ORDER BY TXN_TS""").to_pandas()
-    st.dataframe(ev, use_container_width=True, hide_index=True)
+    st.dataframe(ev.reset_index(drop=True), use_container_width=True)
 
     sections = RULE_POLICY[row["RULE_ID"]]
     plist = ", ".join(f"'{s}'" for s in sections)
